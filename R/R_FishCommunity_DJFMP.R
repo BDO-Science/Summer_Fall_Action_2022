@@ -2,9 +2,10 @@ library(tidyverse)
 library(lubridate)
 library(grid)
 library(gridExtra)
+library(readxl)
 
 #Path to local drive
-root <- "~/GitHub/Summer_Fall_Action_2021"
+root <- "~/GitHub/Summer_Fall_Action_2022"
 setwd(root)
 
 data_root<-file.path(root,"data-raw")
@@ -12,20 +13,27 @@ code_root <- file.path(root,"R")
 output_root <- file.path(root,"output")
 
 #Read data from EDI posting and copy rds (compressed) file into data-raw folder
-#data_djfmp<- read.csv("https://portal.edirepository.org/nis/dataviewer?packageid=edi.244.8&entityid=147fd5e2c7db15913b2ffa44410dc7f9")
+#data_djfmp<- read.csv("https://portal.edirepository.org/nis/dataviewer?packageid=edi.244.9&entityid=147fd5e2c7db15913b2ffa44410dc7f9")
 #saveRDS(data_djfmp, file.path(data_root,"DJFMP","DJFMP_beachseine.rds"))
 
 #Reload data
 data_djfmp<-readRDS(file.path(data_root,"DJFMP","DJFMP_beachseine.rds"))
 
-str(data_djfmp)
 data_djfmp$SampleDate<-as.Date(data_djfmp$SampleDate,"%Y-%m-%d")
+str(data_djfmp)
 
+data_djfmp_2022<-read_excel(file.path(data_root,"DJFMP","BrianM_DJFMP_FY22.xlsx"))
+str(data_djfmp_2022)
+
+data_djfmp_combined<-bind_rows(data_djfmp %>% select(Location, StationCode, SampleDate, SampleTime, GearConditionCode, Volume, OrganismCode, CommonName, ForkLength, Count) %>%
+                                 mutate(StationCode=as.character(StationCode))
+                                 ,data_djfmp_2022 %>% select(Location, StationCode, SampleDate, SampleTime, GearConditionCode, Volume, OrganismCode, CommonName, ForkLength, Count) %>%
+                                 mutate(GearConditionCode=as.numeric(GearConditionCode)))
 #Subset to select stations, months and years
 
 select_stations<-c("DS002S", "GS010E", "LP003E","MK004W", "MR010W", "MS001N","MS001A","OR003W","OR014W","SF014E","SJ001S", "SJ005N", "SJ032S","SJ041N","SJ051E", "SJ056E", "SJ058W", "SJ058E","SR012E","SR012W","SR014W",  "SR017E", "SR024E", "SR043W", "SR049E", "SS011N","TM001N", "WD002W","WD002E","XC001N" )
 #Stations from Mahardja et al. 2017 paper
-data_djfmp_edit <- data_djfmp %>% filter(StationCode %in% select_stations, year(SampleDate)>=1995, month(SampleDate) %in% c(3:8), GearConditionCode <=2)
+data_djfmp_edit <- data_djfmp_combined %>% filter(StationCode %in% select_stations, year(SampleDate)>=1995, month(SampleDate) %in% c(3:8), GearConditionCode <=2)
 
 
 #List of different equations for transforming length to weights (to grams)
@@ -85,7 +93,7 @@ data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="goldfish",carp_funct
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="green sunfish",greensunfish_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="hardhead",splittail_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="hitch",splittail_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
-data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="inland silverside",silverside_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
+data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="Mississippi silverside",silverside_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="largemouth bass",largemouth_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="longfin smelt",longfinsmelt_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
 data_djfmp_edit$Weight<-ifelse(data_djfmp_edit$CommonName=="Pacific herring",pacherring_function(data_djfmp_edit$ForkLength),data_djfmp_edit$Weight)
@@ -171,14 +179,14 @@ data_djfmp_annual<- data_djfmp_wide %>% ungroup() %>% select(-Location,-SampleTi
 
 data_djfmp_annual<-gather(data_djfmp_annual,"OrganismCode","BPUE",2:length(data_djfmp_annual))
 #Add common name back
-fish_taxa<-read.csv("https://portal.edirepository.org/nis/dataviewer?packageid=edi.244.8&entityid=17c9974d9b7b0125c146a887f3c64bd8")
+fish_taxa<-read.csv("https://portal.edirepository.org/nis/dataviewer?packageid=edi.244.9&entityid=17c9974d9b7b0125c146a887f3c64bd8")
 data_djfmp_annual<-left_join(data_djfmp_annual,fish_taxa[,c("OrganismCode","CommonName")])
 
 #Add species categories
 data_djfmp_annual<- data_djfmp_annual %>% mutate(Species_Status= case_when(
   CommonName %in% c("American shad","bluegill","black crappie","common carp","chameleon goby",
                     "fathead minnow","goldfish","green sunfish","golden shiner","largemouth bass",
-                    "bigscale logperch","western mosquitofish","inland silverside",
+                    "bigscale logperch","western mosquitofish","Mississippi silverside",
                     "No catch","redear sunfish","rosyface shiner","red shiner",
                     "shimofuri goby","smallmouth bass","striped bass","threadfin shad",
                     "yellowfin goby","black bullhead","wakasagi","white catfish","white crappie","bass unknown",
@@ -196,7 +204,7 @@ data_djfmp_annual<- data_djfmp_annual %>% mutate(Species_Status= case_when(
 Taxa= case_when(
   CommonName %in% c("bluegill","black crappie","largemouth bass","green sunfish","redear sunfish",
                     "smallmouth bass","white crappie","bass unknown","spotted bass","warmouth","redeye bass") ~ "Centrarchids",
-  CommonName %in% c("inland silverside") ~ "Mississippi Silverside",
+  CommonName %in% c("Mississippi silverside") ~ "Mississippi Silverside",
   CommonName %in% c("American shad","common carp","chameleon goby",
                     "fathead minnow","goldfish","golden shiner",
                     "bigscale logperch","western mosquitofish",
@@ -216,9 +224,14 @@ Taxa= case_when(
 
 annual_summary_status<-data_djfmp_annual %>% group_by(Year,Species_Status) %>% summarise(BPUE=sum(BPUE))
 
+
 annual_summary_taxa<-data_djfmp_annual %>% group_by(Year,Taxa) %>% summarise(BPUE=sum(BPUE))
 annual_summary_taxa$Taxa <- factor(annual_summary_taxa$Taxa, levels = c("Centrarchids", "Mississippi Silverside", "Other introduced species","Native species"))
+#There were non-fish species in the most recent EDI posting in 2022, check that there were 0 BPUE and remove
+annual_summary_status<-na.omit(annual_summary_status)
+annual_summary_taxa<-na.omit(annual_summary_taxa)
 
+str(annual_summary_status)
 #Construct barplots
 
 biomassplot_native_introduced<-ggplot(annual_summary_status,aes(x = Year, y = BPUE, fill=Species_Status,order=Species_Status))+
@@ -226,7 +239,7 @@ biomassplot_native_introduced<-ggplot(annual_summary_status,aes(x = Year, y = BP
   theme(axis.title.y = element_text(size = rel(1.8)),axis.title.x = element_text(size = rel(1.8), angle = 00),
         axis.text.x = element_text(size=14, color = "black",angle=45, vjust = 1, hjust=1),axis.text.y = element_text(size=23, color = "black"))+
   labs(title=NULL, x=NULL, y=expression(paste("Biomass per volume (grams/", m^3, ")",sep = "")))+
-  scale_x_continuous(breaks=seq(min(annual_summary_status$Year),max(annual_summary_status$Year),1),labels = c(1995:2019,"2020*","2021**"))+
+  scale_x_continuous(breaks=seq(min(annual_summary_status$Year),max(annual_summary_status$Year),1),labels = c(1995:2019,"2020*",2021:2022))+
   scale_y_continuous(breaks=seq(0,7,1))+ 
   theme(legend.title=element_blank(),legend.text=element_text(size=14),
         legend.justification=c(1,0), legend.position=c(0.35,0.65),legend.background = element_rect(colour = "black"))+
@@ -238,7 +251,7 @@ biomassplot_taxa<-ggplot(annual_summary_taxa,aes(x = Year, y = BPUE, fill=Taxa,o
   theme(axis.title.y = element_text(size = rel(1.8)),axis.title.x = element_text(size = rel(1.8), angle = 00),
         axis.text.x = element_text(size=18, color = "black",angle=45, vjust = 1, hjust=1),axis.text.y = element_text(size=18, color = "black"))+
   labs(title=NULL, x=NULL, y=expression(paste("Biomass per volume (grams/", m^3, ")",sep = "")))+
-  scale_x_continuous(breaks=seq(min(annual_summary_status$Year),max(annual_summary_status$Year),1),labels = c(1995:2019,"2020*","2021**"))+
+  scale_x_continuous(breaks=seq(min(annual_summary_status$Year),max(annual_summary_status$Year),1),labels = c(1995:2019,"2020*",2021:2022))+
   scale_y_continuous(breaks=seq(0,7,1))+ 
   theme(legend.title=element_blank(),legend.text=element_text(size=14),
         legend.justification=c(1,0), legend.position=c(0.45,0.75),legend.background = element_rect(colour = "black"))+
