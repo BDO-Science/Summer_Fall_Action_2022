@@ -8,7 +8,7 @@ library(RcppRoll)
 library(ggpubr)
 
 #Path to local drive
-root <- "~/GitHub/Summer_Fall_Action_2021"
+root <- "~/GitHub/Summer_Fall_Action_2022"
 setwd(root)
 
 data_root<-file.path(root,"data-raw")
@@ -19,30 +19,40 @@ output_root <- file.path(root,"output")
 data_dayflow<-read.csv(file.path(data_root, "Dayflow", "dayflow-results-1997-2020.csv"))
 data_dayflow$Date <- as.Date(data_dayflow$Date,"%m/%d/%Y")
 
+#################### Add 2021 data
+data_dayflow_2021<-read.csv(file.path(data_root, "Dayflow", "dayflowcalculations2021.csv"))
+data_dayflow_2021$Date <- as.Date(data_dayflow_2021$Date,"%Y-%m-%d")
+data_dayflow_full<-bind_rows(data_dayflow, data_dayflow_2021)
+
+
 #Add julian day
-data_dayflow$julianday<-yday(data_dayflow$Date)
+data_dayflow_full$julianday<-yday(data_dayflow_full$Date)
 
 #Add water year to dayflow
-data_dayflow$WY<-as.numeric(ifelse(month(data_dayflow$Date)>9,data_dayflow$Year+1,data_dayflow$Year))
+data_dayflow_full$WY<-as.numeric(ifelse(month(data_dayflow_full$Date)>9,data_dayflow_full$Year+1,data_dayflow_full$Year))
 
-#################### Add 2021 data
-#Load WY2021 Net Delta Outflow Index (NDOI) as given to Rosemary from Jessie Cheng:Jie.Cheng@water.ca.gov
+data_dayflow_full$Month<-month(data_dayflow_full$Date)
 
+###STOP HERE
+#################### Add 2022 data
+#Load WY2022 Net Delta Outflow Index (NDOI) as given to Rosemary from Ian Uecker: ian.uecker@water.ca.gov
 
-NDOI_2021 <- read.csv(file.path(data_root, "Dayflow", "NDOI_WY2021.csv"))
-NDOI_2021$Date <- as.Date(NDOI_2021$Date,"%m/%d/%Y")
+NDOI_2022 <- read.csv(file.path(data_root, "Dayflow", "NDOI.csv"))
+
+NDOI_2022$Date <- as.Date(NDOI_2022$Date,"%m/%d/%Y")
 
 #Edit 2021 data from CDEC to match Dayflow
-data_outflow_2021<-NDOI_2021 %>% mutate(OUT=NDOIcfs,WY=2021,Year=year(Date)) %>% select(Date,OUT,Year,WY)
-data_outflow_2021$Month<-month(data_outflow_2021$Date)
+data_outflow_2022<-NDOI_2022 %>% mutate(OUT=NDOI,WY=2022,Year=year(Date)) %>% select(Date,OUT,Year,WY) 
 
-#Add 2021 to the dayflow data
-data_dayflow_added <- dplyr::bind_rows(data_dayflow,data_outflow_2021)
+data_outflow_2022$Month<-month(data_outflow_2022$Date)
+
+#Add 2022 to the dayflow data
+data_dayflow_added <- dplyr::bind_rows(data_dayflow_full,data_outflow_2022)
 #Order full data set by date
 data_dayflow_added <- data_dayflow_added[order(data_dayflow_added$Date),]
-#Locate start row for 2021 WY data
-which(data_dayflow_added$Date=="2020-10-01")
-#8767
+#Locate start row for 2022 WY data
+which(data_dayflow_added$Date=="2021-09-01")
+#9102
 
 
 #Calculate X2 based on DAYFLOW documentation:
@@ -61,11 +71,11 @@ which(data_dayflow_added$Date=="2020-10-01")
 #NOTE: It seems like the log in the DAYFLOW notation is referring to Log10 (i.e., not ln)
 
 #Fill in X2 data for most recent WY data
-for (i in 8767:nrow(data_dayflow_added)) {
+for (i in 9102:nrow(data_dayflow_added)) {
   data_dayflow_added$X2[i] = 10.16 + (0.945*(data_dayflow_added$X2[i-1]))+(-1.487*log10(data_dayflow_added$OUT[i]))
 }
 
-data_dayflow_added[c(8767),]
+data_dayflow_added[c(9102),]
 
 
 #################### Add Water Year information
@@ -83,24 +93,24 @@ data_dayflow_added<-left_join(data_dayflow_added,data_wateryear[,c("WY","Sac_WY"
 data_dayflow_summerfall<-data_dayflow_added %>% filter(Month %in% c(6:10))
 
 #Subset just last 5 years
-data_dayflow_summerfall_5yrs<-data_dayflow_summerfall %>% filter(Year %in% c(2016:2021))
+data_dayflow_summerfall_5yrs<-data_dayflow_summerfall %>% filter(Year %in% c(2017:2022))
 
 data_dayflow_summerfall_5yrs$WY<-as.factor(data_dayflow_summerfall_5yrs$WY)
 
 data_dayflow_summerfall_5yrs$Year<-as.factor(data_dayflow_summerfall_5yrs$Year)
 
 ##Quick average X2 summary for Armin
-X2_2021<- data_dayflow_added %>% filter(Year==2021&Month %in% c(6:10))
-mean(X2_2021$X2)
-#88.79056
+X2_2022<- data_dayflow_added %>% filter(Year==2022&Month %in% c(6:10))
+mean(X2_2022$X2)
+#86.69995
 
 #Plot for Outflow
 plot_outflow_5yrs <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
-  ggplot2::geom_line(data=data_dayflow_summerfall_5yrs, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=OUT, color=Year, size=Year))+
+  ggplot2::geom_line(data=data_dayflow_summerfall_5yrs, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=OUT, color=Year, size=Year))+
   #ggplot2::scale_linetype_manual(values = c("dotdash","dotdash","dotdash","dotdash","dotdash","solid"),guide=FALSE) +
-  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#FF671F","#9A3324"),name="",labels=c(2016:2021)) +
-  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,0.5,1),name="",labels=c(2016:2021)) +
+  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#FF671F","#9A3324"),name="",labels=c(2017:2022)) +
+  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,0.5,1),name="",labels=c(2017:2022)) +
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 
                  axis.text.y = element_text(size=8, color="black"), 
@@ -117,10 +127,10 @@ plot_outflow_5yrs
 #Plot for X2
 plot_X2_5yrs <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
-  ggplot2::geom_line(data=data_dayflow_summerfall_5yrs, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=X2, color=Year, size=Year))+
+  ggplot2::geom_line(data=data_dayflow_summerfall_5yrs, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=X2, color=Year, size=Year))+
   #ggplot2::scale_linetype_manual(values = c("dotdash","dotdash","dotdash","dotdash","dotdash","solid"),name="",labels=c(2015:2020)) +
-  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#FF671F","#9A3324"),name="",labels=c(2016:2021))+
-  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,0.5,1),name="",labels=c(2016:2021)) +
+  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#FF671F","#9A3324"),name="",labels=c(2017:2022))+
+  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,0.5,1),name="",labels=c(2017:2022)) +
   #ggplot2::scale_linetype(guide = FALSE)+
   ggplot2::theme(plot.title=element_text(size=9), 
           axis.text.x=element_text(size=9, color="black"), 
@@ -176,11 +186,11 @@ data_dayflow_summerfall_c_dry$Year<-as.factor(data_dayflow_summerfall_c_dry$Year
 #Plot for Outflow
 plot_outflow_critically_dry <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
-  ggplot2::geom_line(data=data_dayflow_summerfall_c_dry, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=OUT, color=Year, size=Year))+
+  ggplot2::geom_line(data=data_dayflow_summerfall_c_dry, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=OUT, color=Year, size=Year))+
   #Need to change below when 2020 data is in
   #ggplot2::scale_linetype_manual(values = c("dotdash","dotdash","dotdash","dotdash","dotdash","solid"),guide=FALSE) +
-  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#9A3324"),guide=FALSE) +
-  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,1),name="",labels=critically_dry_years) +
+  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#9A3324"),guide=FALSE) +
+  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,1),name="",labels=critically_dry_years) +
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 
                  axis.text.y = element_text(size=8, color="black"), 
@@ -197,11 +207,11 @@ plot_outflow_critically_dry
 #Plot for X2
 plot_X2_critically_dry <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
-  ggplot2::geom_line(data=data_dayflow_summerfall_c_dry, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=X2, color=Year, size=Year))+
+  ggplot2::geom_line(data=data_dayflow_summerfall_c_dry, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=X2, color=Year, size=Year))+
   #Need to change below when 2020 data is in
   #ggplot2::scale_linetype_manual(values = c("dotdash","dotdash","dotdash","dotdash","dotdash","solid"),name="",labels=dry_years) +
-  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#9A3324"),name="",labels=critically_dry_years) +
-  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,1),name="",labels=critically_dry_years) +
+  ggplot2::scale_colour_manual(values = c("#003E51","#007396","#C69214","#DDCBA4","#9A3324"),name="",labels=critically_dry_years) +
+  ggplot2::scale_size_manual(values = c(0.5,0.5,0.5,0.5,1),name="",labels=critically_dry_years) +
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 
                  axis.text.y = element_text(size=8, color="black"), 
@@ -244,7 +254,7 @@ grid.arrange(gC, gD, ncol=1,nrow=2)
 dev.off()
 
 ### To check min and max X2
-DT2021<-data_dayflow_added %>% filter(Year==2021)
+DT2021<-data_dayflow_added %>% filter(Year==2022)
 View(DT2021)
 DT2021<-DT2021 %>% filter(Month %in% c(6:10))
 
@@ -253,22 +263,22 @@ DT2021<-DT2021 %>% filter(Month %in% c(6:10))
 
 
 
-d1641<-data.frame(Month=c(5,6,7,8,9,10),Outflow_required=c(3000,3000,3000,3000,3000,3000))
+d1641<-data.frame(Month=c(5,6,7,8,9,10),Outflow_required=c(3000,4000,4000,3000,3000,3000))
 
-data_outflow_2021$Month=month(data_outflow_2021$Date)
+data_outflow_2022$Month=month(data_outflow_2022$Date)
 
-d1641_2021<-left_join(data_outflow_2021,d1641) %>% filter(Month %in% c(5:10), Year==2021)
+d1641_2022<-left_join(data_outflow_2022,d1641) %>% filter(Month %in% c(5:10), Year==2022)
 
-d1641_2021$d14_rollavg <- roll_mean(d1641_2021$OUT, n = 14, align = "right", fill = NA)
+d1641_2022$d14_rollavg <- roll_mean(d1641_2022$OUT, n = 14, align = "right", fill = NA)
 
-d1641_2021_june <- d1641_2021 %>% filter(Month==6)
+d1641_2022_june <- d1641_2022 %>% filter(Month==6)
 
   
 #D1641 plot for June (14-day rolling average)
 plot_d1641 <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
-  ggplot2::geom_line(data=d1641_2021_june, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=d14_rollavg),color="black",size=0.6)+
-  ggplot2::geom_line(data=d1641_2021_june, ggplot2::aes(x=as.Date(paste(2021,strftime(Date,format="%m-%d"),sep="-")), y=Outflow_required),color="red",size=2,alpha=0.5)+
+  ggplot2::geom_line(data=d1641_2022_june, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=d14_rollavg),color="black",size=0.6)+
+  ggplot2::geom_line(data=d1641_2022_june, ggplot2::aes(x=as.Date(paste(2022,strftime(Date,format="%m-%d"),sep="-")), y=Outflow_required),color="red",size=2,alpha=0.5)+
   #Need to change below when 2020 data is in
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 
@@ -284,16 +294,16 @@ plot_d1641
 
 
 #D1641 plot for July to September (monthly averages)
-d1641_2021_jul_sep <- d1641_2021 %>% mutate(Month_name=format(Date,"%B")) %>% group_by(Month,Month_name) %>% 
-  summarise(OUT=mean(OUT),Outflow_required=mean(Outflow_required)) %>% filter(Month>6)
+d1641_2022_jul_sep <- d1641_2022 %>% mutate(Month_name=format(Date,"%B")) %>% group_by(Month,Month_name) %>% 
+  summarise(OUT=mean(OUT),Outflow_required=mean(Outflow_required)) %>% filter(Month>6&Month<10)
 
-d1641_2021_jul_sep$Month_name<-factor(d1641_2021_jul_sep$Month_name, levels = c("July", "August", "September"))
+d1641_2022_jul_sep$Month_name<-factor(d1641_2022_jul_sep$Month_name, levels = c("July", "August", "September"))
 
-plot_d1641_02 <- ggplot2::ggplot(data=d1641_2021_jul_sep,ggplot2::aes(x=Month_name))+
+plot_d1641_02 <- ggplot2::ggplot(data=d1641_2022_jul_sep,ggplot2::aes(x=Month_name))+
   ggplot2::theme_bw()+
-  ggplot2::geom_bar(data=d1641_2021_jul_sep, ggplot2::aes(y=OUT),size=0.6,stat="identity")+
-  #ggplot2::geom_line(data=d1641_2021_jul_sep, ggplot2::aes(x=as.numeric(Month_name),y=Outflow_required),color="red",size=2,alpha=0.5)+
-  ggplot2::geom_hline(yintercept = 3000,size=2,alpha=0.5,color="red")+
+  ggplot2::geom_bar(data=d1641_2022_jul_sep, ggplot2::aes(y=OUT),size=0.6,stat="identity")+
+  ggplot2::geom_line(data=d1641_2022_jul_sep, ggplot2::aes(x=as.numeric(Month_name),y=Outflow_required),color="red",size=2,alpha=0.5)+
+  ggplot2::geom_point(data=d1641_2022_jul_sep, ggplot2::aes(y=Outflow_required),size=2,alpha=0.5,color="red")+
   #Need to change below when 2020 data is in
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 

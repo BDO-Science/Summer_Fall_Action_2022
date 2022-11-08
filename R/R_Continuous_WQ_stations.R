@@ -147,14 +147,18 @@ GZM_cond <- CDECquery(id='GZM', sensor=100, interval='E', start=start_date, end=
 
 
 #Tule Red data is not up online, sent by Jamel
-TRB <- read.csv(file.path(data_root,"WaterQuality","TLR 8.13.21 - 9.30.21.csv"))
-#Convert to consistent format with the rest of CDEC data
-TRB <- TRB %>% mutate(Date=as.Date(Date..MM.DD.YYYY.,"%m/%d/%Y")) %>%
-  mutate(station_id="TRB", datetime = as.POSIXct(paste(Date,Time..HH.mm.ss.)))
+TRB_Jun <- read.csv(file.path(data_root,"WaterQuality","TRB_data_June.csv"))
+TRB_AugSep <- read.csv(file.path(data_root,"WaterQuality","2022-08-09_TuleRedBreach_2022-09-21 (formatted).csv"))
 
+TRB<-bind_rows(TRB_Jun, TRB_AugSep)
 str(TRB)
+
+#Convert to consistent format with the rest of CDEC data
+TRB <- TRB  %>% mutate(station_id="TRB", datetime = as.POSIXct(strptime(paste(time),"%m/%d/%Y %H:%M"))) %>% 
+  mutate(Date=as.Date(time,"%m/%d/%Y"))
+
 #Create conductivity data for TRB
-TRB_cond<- TRB %>% rename(value=SpCond.µS.cm) %>% select(station_id,datetime,value)
+TRB_cond<- TRB %>% filter(analyte_name=="Specific Conductance") %>% select(station_id,datetime,value)
 
 #Combine Data
 SalinityData<-bind_rows(GZL_cond,MAL_cond,RVB_cond,NSL_cond,BDL_cond,HUN_cond,GZB_cond,GZM_cond,TRB_cond)
@@ -214,7 +218,7 @@ GZB_temp <- CDECquery(id='GZB', sensor=25, interval='E', start=start_date, end=e
 GZM_temp <- CDECquery(id='GZM', sensor=25, interval='E', start=start_date, end=end_date)
 
 #Create conductivity data for TRB
-TRB_temp<- TRB %>% rename(value=Temp..C) %>% select(station_id,datetime,value)
+TRB_temp<- TRB %>% filter(analyte_name=="Water Temperature") %>% select(station_id,datetime,value)
 
 #Combine Data
 TemperatureData<-bind_rows(GZL_temp,MAL_temp,RVB_temp,NSL_temp,BDL_temp,HUN_temp,GZB_temp,GZM_temp,TRB_temp)
@@ -276,7 +280,7 @@ GZB_turb <- CDECquery(id='GZB', sensor=27, interval='E', start=start_date, end=e
 GZM_turb <- CDECquery(id='GZM', sensor=221, interval='E', start=start_date, end=end_date)
 
 #Create turbidity data for TRB
-TRB_turb <- TRB %>% rename(value=Turbidity.FNU) %>% select(station_id,datetime,value)
+TRB_turb<- TRB %>% filter(analyte_name=="Turbidity") %>% select(station_id,datetime,value)
 
 #Combine Data
 TurbidityData<-bind_rows(GZL_turb,MAL_turb,NSL_turb,BDL_turb,HUN_turb,RVB_turb,GZB_turb,GZM_turb,TRB_turb)

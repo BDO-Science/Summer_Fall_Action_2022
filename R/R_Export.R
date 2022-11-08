@@ -3,7 +3,7 @@ library(lubridate)
 library(viridis)
 
 #Path to local drive
-root <- "~/GitHub/Summer_Fall_Action_2021"
+root <- "~/GitHub/Summer_Fall_Action_2022"
 setwd(root)
 
 data_root<-file.path(root,"data-raw")
@@ -11,10 +11,11 @@ code_root <- file.path(root,"R")
 output_root <- file.path(root,"output")
 
 
-data_export <- read_csv(file.path(data_root, "Dayflow", "June_Oct_Exports_NDOI_2021.csv"))
+data_export <- read_csv(file.path(data_root, "Dayflow", "NDOI.csv"))
 data_export$Date<-as.Date(data_export$Date,"%m/%d/%Y")
-data_export_edit<-data_export %>% mutate (Federal = Tracy, State = CCF) %>% select("Date","State","Federal") %>%
-  tidyr::gather("Facility","Export",2:3)
+data_export_edit<-data_export %>% mutate (Federal = CVP, State = SWP) %>% select("Date","State","Federal") %>%
+  tidyr::gather("Facility","Export",2:3) %>% #Subset to June to September
+  filter(month(Date) %in% c(6:9))
 
 data_export_edit$Facility<-ordered(data_export_edit$Facility, levels = c("State", "Federal"))
 
@@ -24,7 +25,7 @@ data_export_sum <- data_export_edit %>% group_by(Date) %>% summarise(Export=sum(
 export_plot<-ggplot(data_export_sum, aes(y=Export, x=Date)) + 
   geom_point(size=0.5) + geom_line() +
   scale_fill_viridis(discrete = T) +
-  ggtitle("Summer-Fall 2021") +
+  ggtitle("Summer-Fall 2022") +
   theme_bw() +
   ggplot2::ylab(bquote("Daily"~export~"("*ft^3*"/s)"))+
   xlab("")+
