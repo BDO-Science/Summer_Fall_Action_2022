@@ -432,7 +432,7 @@ SalinityData
 mindates<-c("2022-09-08 01:00:00", "2022-10-01 01:00:00")
 maxdates<-c("2022-09-24 01:00:00", "2022-10-31 01:00:00")
 
-SMSG_highlight<-data.frame(MinDate=mindates,MaxDate=maxdates,mindata=c(0,0),maxdata=c(11,11))
+SMSG_highlight<-data.frame(MinDate=mindates,MaxDate=maxdates,mindata=c(0,0),maxdata=c(12,12))
 SMSG_highlight$MaxDate<-as.POSIXct(SMSG_highlight$MaxDate)
 SMSG_highlight$MinDate<-as.POSIXct(SMSG_highlight$MinDate)
 
@@ -441,7 +441,7 @@ plot_BDL <- ggplot2::ggplot()+
   ggplot2::theme_bw()+
   ggplot2::geom_point(data= (SalinityData %>% filter(station_id == "BDL")), ggplot2::aes(x=datetime, y=ppt),alpha=0.2)+
   ggplot2::geom_smooth(data= (SalinityData %>% filter(station_id == "BDL")), ggplot2::aes(x=datetime, y=ppt),method = 'loess',se=FALSE,span = 0.3)+
-  ggplot2::geom_rect(data=SMSG_highlight, ggplot2::aes(xmin=MinDate, xmax=MaxDate, ymin=mindata, ymax=maxdata), alpha=0.3, fill="darkorange1")+
+  #ggplot2::geom_rect(data=SMSG_highlight, ggplot2::aes(xmin=MinDate, xmax=MaxDate, ymin=mindata, ymax=maxdata), alpha=0.3, fill="darkorange1")+
   ggplot2::theme(plot.title=element_text(size=9), 
                  axis.text.x=element_text(size=9, color="black"), 
                  axis.text.y = element_text(size=8, color="black"), 
