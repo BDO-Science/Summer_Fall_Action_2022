@@ -8,7 +8,7 @@ library(ggrepel)
 library(readxl)
 
 #Path to local drive
-root <- "~/GitHub/Summer_Fall_Action_2021"
+root <- "~/GitHub/Summer_Fall_Action_2022"
 setwd(root)
 
 data_root<-file.path(root,"data-raw")
@@ -16,21 +16,12 @@ code_root <- file.path(root,"R")
 output_root <- file.path(root,"output")
 
 #Summary for POD species (Striped Bass and Threadfin Shad)
-tns <- read.csv(file.path(data_root,"TNS", "STN_CatchPerTow_20201130.csv"))%>%
+tns <- read.csv(file.path(data_root,"TNS", "STNCatchPerTow1959-2022.csv"))%>%
   filter(Year>2010) %>% 
-  select(Year, Survey, Station.Code, Age.0.Striped.bass, Threadfin.Shad) %>%
-  group_by(Year,Survey,Station.Code) %>% summarise(Age0StripedBass=sum(Age.0.Striped.bass), Threadfin.Shad=sum(Threadfin.Shad))
+  select(Year, Survey, Station.Code, Age.0.Striped.Bass, Threadfin.Shad) %>%
+  group_by(Year,Survey,Station.Code) %>% summarise(Age0Stripedbass=sum(Age.0.Striped.Bass), Threadfin.Shad=sum(Threadfin.Shad))
 
-tns_2021 <- read.csv(file.path(data_root,"TNS", "STNCatchPerStation2021.csv")) %>%
-  rename(Station.Code = StationCode,Age0StripedBass=Age.0.Striped.bass) %>%
-  select(Year, Survey, Station.Code, Age0StripedBass, Threadfin.Shad)
-str(tns_2021)
-
-tns_2021[is.na(tns_2021)] = 0
-
-tns<-bind_rows(tns,tns_2021)
-
-fmwt <- read.csv(file.path(data_root,"FMWT", "FMWT 1967-2021 Catch Matrix_updated.csv"))
+fmwt <- read.csv(file.path(data_root,"FMWT", "FMWT 1967-2022 Catch Matrix_updated.csv"))
 
 
 #Summer Townet Survey---------
@@ -47,13 +38,11 @@ list(fmwt)
 fmwt_edit<-fmwt %>% filter(Year>=2010) %>% select(Year,SampleDate,SurveyNumber,StationCode,Threadfin.Shad,Striped.Bass.age.0)
 unique(fmwt_edit$Survey)
 
-str(fmwt_2020)
-fmwt_edit$SampleDate<-as.Date(fmwt_edit$SampleDate,"%m/%d/%Y")
+fmwt_edit$SampleDate<-as.Date(fmwt_edit$SampleDate,"%Y-%m-%d")
 
 #THREADFIN SHAD
 
 #Summer Townet Survey-----------
-#We will use just 2011 data and on
 #Summarize mean and standard deviation for catch per tow
 tns_tfs_2011_by_station<- tns %>% group_by(Year,Survey,Station.Code) %>% summarise(TFS_catch = mean(Threadfin.Shad)) 
 #tns_tfs_2011_by_survey<- tns_tfs_2011_by_station %>% add_column(samplesize=1) %>% group_by(Year,Survey) %>% summarise(TFS_catch = mean(TFS_catch),samplesize=sum(samplesize))
@@ -133,7 +122,7 @@ dev.off()
 
 #Perhaps we will just use CPUE for consistency sake. We can switch to index if necessary. 
 #Summarize mean and standard deviation for catch per tow
-tns_stb_2011_by_station<- tns %>% group_by(Year,Survey,Station.Code) %>% summarise(STB_catch = mean(Age0StripedBass)) 
+tns_stb_2011_by_station<- tns %>% group_by(Year,Survey,Station.Code) %>% summarise(STB_catch = mean(Age0Stripedbass)) 
 tns_stb_2011_by_year<-tns_stb_2011_by_station %>% group_by(Year) %>% summarise(STB_catch_mean = mean(STB_catch),STB_sd= sd(STB_catch))
 
 #Add upper and lower bounds
